@@ -6,6 +6,7 @@ import pprint
 import random
 import base64
 import time
+import warnings
 import zipfile
 from io import BytesIO
 from typing import Callable
@@ -144,6 +145,40 @@ class PartialProject(BaseSiteComponent):
             return False
         return True
 
+    def __rich__(self):
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich import box
+        from rich.markup import escape
+
+        url = f"[link={self.url}]{self.title}[/]"
+
+        ret = Table.grid(expand=True)
+        ret.add_column(ratio=1)
+        ret.add_column(ratio=3)
+
+        info = Table(box=box.SIMPLE)
+        info.add_column(url, overflow="fold")
+        info.add_column(f"#{self.id}", overflow="fold")
+
+        info.add_row("By", self.author_name)
+        info.add_row("Created", escape(self.created))
+        info.add_row("Shared", escape(self.share_date))
+        info.add_row("Modified", escape(self.last_modified))
+        info.add_row("Comments allowed", escape(str(self.comments_allowed)))
+        info.add_row("Loves", str(self.loves))
+        info.add_row("Faves", str(self.favorites))
+        info.add_row("Remixes", str(self.remix_count))
+        info.add_row("Views", str(self.views))
+
+        desc = Table(box=box.SIMPLE)
+        desc.add_row("Instructions", escape(self.instructions))
+        desc.add_row("Notes & Credits", escape(self.notes))
+
+        ret.add_row(Panel(info, title=url), Panel(desc, title="Description"))
+
+        return ret
+
     @property
     def embed_url(self):
         """
@@ -272,7 +307,12 @@ class Project(PartialProject):
     """
 
     def __str__(self):
-        return str(self.title)
+        return f"-P {self.id} ({self.title})"
+
+    @property
+    def thumbnail(self) -> bytes:
+        with requests.no_error_handling():
+            return requests.get(self.thumbnail_url).content
 
     def _assert_permission(self):
         self._assert_auth()
@@ -676,7 +716,7 @@ class Project(PartialProject):
             f"https://api.scratch.mit.edu/proxy/comments/project/{self.id}/comment/{comment_id}/",
             headers=self._headers,
             cookies=self._cookies,
-        ).headers
+        )
 
     def report_comment(self, *, comment_id):
         """
@@ -933,7 +973,14 @@ def get_project(project_id) -> Project:
 
         If you want to use these methods, get the project with :meth:`scratchattach.session.Session.connect_project` instead.
     """
-    print("Warning: For methods that require authentication, use session.connect_project instead of get_project")
+    warnings.warn(
+        "Warning: For methods that require authentication, use session.connect_project instead of get_project.\n"
+        "If you want to remove this warning, "
+        "use `warnings.filterwarnings('ignore', category=scratchattach.ProjectAuthenticationWarning)`.\n"
+        "To ignore all warnings of the type GetAuthenticationWarning, which includes this warning, use "
+        "`warnings.filterwarnings('ignore', category=scratchattach.GetAuthenticationWarning)`.",
+        exceptions.ProjectAuthenticationWarning
+    )
     return commons._get_object("id", project_id, Project, exceptions.ProjectNotFound)
 
 

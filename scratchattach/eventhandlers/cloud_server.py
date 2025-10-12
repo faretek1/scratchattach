@@ -8,7 +8,7 @@ import time
 from scratchattach.site import cloud_activity
 from scratchattach.site.user import User
 from ._base import BaseEventHandler
-
+import traceback
 class TwCloudSocket(WebSocket):
 
     def handleMessage(self):
@@ -19,6 +19,7 @@ class TwCloudSocket(WebSocket):
                 return
             
             data = json.loads(self.data)
+            print(data)
 
             if data["method"] == "set":
                 # cloud variable set received
@@ -90,7 +91,7 @@ class TwCloudSocket(WebSocket):
                 print("Error:", self.address[0]+":"+str(self.address[1]), "sent a message without providing a valid method (set, handshake)")
 
         except Exception as e:
-            print("Internal error in handleMessage:", e)
+            print("Internal error in handleMessage:", e, traceback.format_exc())
 
     def handleConnected(self):
         if not self.server.running:
@@ -125,7 +126,9 @@ def init_cloud_server(hostname='127.0.0.1', port=8080, *, thread=True, length_li
     """
     class TwCloudServer(SimpleWebSocketServer, BaseEventHandler):
         def __init__(self, hostname, *, port, websocketclass):
-            super().__init__(hostname, port=port, websocketclass=websocketclass)
+            SimpleWebSocketServer.__init__(self, hostname, port=port, websocketclass=websocketclass)
+            BaseEventHandler.__init__(self)
+
             self.running = False
             self._events = {} # saves event functions called on cloud updates
 
